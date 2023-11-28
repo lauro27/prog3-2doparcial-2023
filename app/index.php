@@ -31,15 +31,27 @@ $app->addErrorMiddleware(true, true, true);
 // Add parse body
 $app->addBodyParsingMiddleware();
 
+$app->addRoutingMiddleware();
+
+date_default_timezone_set("America/Argentina/Buenos_Aires");
+
 // Routes
-$app->group('/usuarios', function (RouteCollectorProxy $group) {
-    $group->get('[/]', \UsuarioController::class . ':TraerTodos');
-    $group->get('/{usuario}', \UsuarioController::class . ':TraerUno');
-    $group->post('[/]', \UsuarioController::class . ':CargarUno');
+$app->group('/cliente', function (RouteCollectorProxy $group) {
+    $group->post('[/]', \ClienteController::class . ':CargarUno');//PUNTO 1-B y 8
+    $group->post('/traer[/]', \ClienteController::class . ':TraerUno');//PUNTO 2
+    $group->put('[/]', \ClienteController::class . ':ModificarUno');//PUNTO 5
+    $group->delete('[/]', \ClienteController::class . ':BorrarUno');//PUNTO 9
+  });
+
+$app->group('/reservas', function (RouteCollectorProxy $group) {
+    $group->post('[/]', \ReservaController::class . ':CargarUno');//PUNTO 3
+    $group->get('/{consulta}[/]', \ReservaController::class . ':TraerTodos');//PUNTO 4 y 10 - incompleto
+    $group->post('/cancelar[/]', \ReservaController::class . ':BorrarUno');//PUNTO 6
+    $group->post('/ajustar[/]', \ReservaController::class . ':ModificarUno');//PUNTO 7
   });
 
 $app->get('[/]', function (Request $request, Response $response) {    
-    $payload = json_encode(array("mensaje" => "Slim Framework 4 PHP"));
+    $payload = json_encode(array("mensaje" => "2do Parcial - Lamas"));
     
     $response->getBody()->write($payload);
     return $response->withHeader('Content-Type', 'application/json');

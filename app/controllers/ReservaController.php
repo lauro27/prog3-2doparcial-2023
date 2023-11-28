@@ -3,7 +3,7 @@ use Slim\Psr7\Response;
 
 require_once './models/Reserva.php';
 require_once './interfaces/IApiUsable.php';
-require_once './dto/BuscaTotalesDTO.php';
+require_once './models/Ajuste.php';
 
 class ReservaController extends Reserva implements IApiUsable
 {
@@ -11,38 +11,41 @@ class ReservaController extends Reserva implements IApiUsable
     public function CargarUno($request, $response, $args)
     {
       $parametros = $request->getParsedBody();
-      $tipoCliente = $parametros['tipo_cliente'];
+      $tipo_cliente = $parametros['tipo_cliente'];
       $numero = $parametros['numero'];
-      $cliente = Cliente::obtenerCliente($tipoCliente, $numero);
-      
-      $idCliente = $parametros['id_cliente'];
-      $fechaEntrada = $parametros['fecha_entrada'];
-      $fechaSalida = $parametros['fecha_salida'];
-      $tipoHabitacion = $parametros['tipo_habitacion'];
-      
-      
-      $usr = new Reserva();
-      $usr->idCliente = $idCliente;
-      $usr->fechaEntrada = $fechaEntrada;
-      $usr->fechaSalida = $fechaSalida;
-      $usr->tipoHabitacion = $tipoHabitacion;
+      $cliente = Cliente::obtenerCliente($tipo_cliente, $numero);
       
       if (!isset($cliente->documento)) {
         $payload = json_encode(array("mensaje" => "No se encuentra cliente valido"));
-      $response->getBody()->write($payload);
-      return $response
-        ->withHeader('Content-Type', 'application/json');
+        $response->getBody()->write($payload);
+        return $response
+          ->withHeader('Content-Type', 'application/json');
       }
+
+      $id_cliente = $cliente->id;
+      $fecha_entrada = $parametros['fecha_entrada'];
+      $fecha_salida = $parametros['fecha_salida'];
+      $tipo_habitacion = $parametros['tipo_habitacion'];
+      $importe = $parametros['importe'];
+      
+      
+      $usr = new Reserva();
+      $usr->id_cliente = $id_cliente;
+      $usr->fecha_entrada = $fecha_entrada;
+      $usr->fecha_salida = $fecha_salida;
+      $usr->tipo_habitacion = $tipo_habitacion;
+      $usr->importe = intval($importe);
+      
+      
 
       $id = $usr->crearReserva();
 
       //PUNTO 3 B
       $files = $request->getUploadedFiles();
-      var_dump($files);
       if(isset($files['foto']))
       {
-          if(!file_exists('ImagenesDeReservas2023/')){
-              mkdir('ImagenesDeReservas2023/',0777, true);
+          if(!file_exists('ImagenesDeReservas/2023/')){
+              mkdir('ImagenesDeReservas/2023/',0777, true);
           }
           $foto = $files['foto'];
           $media = $foto->getClientMediaType();
@@ -51,7 +54,7 @@ class ReservaController extends Reserva implements IApiUsable
           if($type == "image")
           {
             $tipos = $cliente->separarTipo();
-            $ruta = "./Mesas/" . $cliente->numero . substr($tipos[0],0,1) . substr($tipos[1],0,1) . $id ."." . $ext;
+            $ruta = "./ImagenesDeReservas/2023/" . $cliente->numero . substr($tipos[0],0,1) . substr($tipos[1],0,1) . $id ."." . $ext;
             $foto->moveTo($ruta);
           }
           else{$ruta = "";}
@@ -68,13 +71,13 @@ class ReservaController extends Reserva implements IApiUsable
     public function TraerUno($request, $response, $args)
     {
         $parametros = $request->getParsedBody();
-        $tipoCliente = $parametros['tipo_cliente'];
+        $tipo_cliente = $parametros['tipo_cliente'];
         $numero = $parametros['numero'];
-        $clientes = Cliente::obtenerPorNro($numero);
+        $clientes = Cliente::obtenerCliente($tipo_cliente, $numero);
         $cliente = null;
         if(count($clientes) > 0){
           foreach ($clientes as $key => $value) {
-            if ($value->tipoCliente == $tipoCliente){
+            if ($value->tipo_cliente == $tipo_cliente){
               $cliente = $value;
               break;
             }
@@ -118,9 +121,9 @@ class ReservaController extends Reserva implements IApiUsable
           //4-B
           if (isset($parametros["tipo_cliente"]) && isset($parametros["numero"]))
           {
-            $tipoCliente = $parametros["tipo_cliente"];
+            $tipo_cliente = $parametros["tipo_cliente"];
             $numero = $parametros["numero"];
-            $cliente = Cliente::obtenerCliente($tipoCliente, $numero);
+            $cliente = Cliente::obtenerCliente($tipo_cliente, $numero);
             if(isset($cliente->documento))
               {$payload = Reserva::obtenerTodosCliente($cliente->id);}
             else
@@ -157,9 +160,9 @@ class ReservaController extends Reserva implements IApiUsable
           //10-B
           if (isset($parametros["tipo_cliente"]) && isset($parametros["numero"]))
           {
-            $tipoCliente = $parametros["tipo_cliente"];
+            $tipo_cliente = $parametros["tipo_cliente"];
             $numero = $parametros["numero"];
-            $cliente = Cliente::obtenerCliente($tipoCliente, $numero);
+            $cliente = Cliente::obtenerCliente($tipo_cliente, $numero);
             if(isset($cliente->documento))
               {$payload = Reserva::obtenerCanceladosCliente($cliente->id);}
             else
@@ -188,10 +191,10 @@ class ReservaController extends Reserva implements IApiUsable
           break;
 
         default:
-          $payload = json_encode(array("mensaje" => "Opcion invalida"));
+          $payload = array("mensaje" => "Opcion invalida");
           break;
       }
-      $response->getBody()->write($payload);
+      $response->getBody()->write(json_encode($payload));
       return $response
         ->withHeader('Content-Type', 'application/json');
     }
@@ -200,11 +203,11 @@ class ReservaController extends Reserva implements IApiUsable
     public function ModificarUno($request, $response, $args)
     {
         $parametros = $request->getParsedBody();
-        $idReserva = $parametros['id_reserva'];
+        $id_reserva = $parametros['id_reserva'];
         $importe = intval($parametros['importe']);
         $causa = $parametros['causa'];
 
-        $reserva = Reserva::obtenerReserva($idReserva);
+        $reserva = Reserva::obtenerReserva($id_reserva);
 
         if(!isset($reserva->importe)){
           $payload = json_encode(array("mensaje" => "No se encuentra reserva"));
@@ -213,8 +216,8 @@ class ReservaController extends Reserva implements IApiUsable
           $reserva->importe = $importe;
           $reserva->modificarReserva();
           $ajuste = new Ajuste();
-          $ajuste->idReserva = $idReserva;
-          $ajuste->importe = $importe;
+          $ajuste->id_reserva = $id_reserva;
+          $ajuste->importe_nuevo = $importe;
           $ajuste->causa = $causa;
           $ajuste->crearAjuste();
           $payload = json_encode(array("mensaje" => "Ajuste realizado"));
@@ -229,17 +232,17 @@ class ReservaController extends Reserva implements IApiUsable
     public function BorrarUno($request, $response, $args)
     {
         $parametros = $request->getParsedBody();
-        $tipoCliente = $parametros["tipo_cliente"];
+        $tipo_cliente = $parametros["tipo_cliente"];
         $numero = $parametros["numero"];
-        $idReserva = $parametros["id_reserva"];
+        $id_reserva = $parametros["id_reserva"];
 
-        $reserva = Reserva::obtenerReserva($idReserva);
-        $cliente = Cliente::obtenerCliente($tipoCliente, $numero);
+        $reserva = Reserva::obtenerReserva($id_reserva);
+        $cliente = Cliente::obtenerCliente($tipo_cliente, $numero);
         
         if(!isset($cliente->numero)){
           $payload = array("mensaje" => "Cliente no valido");
         }
-        elseif(!isset($reserva->tipoHabitacion)){
+        elseif(!isset($reserva->tipo_habitacion)){
           $payload = array("mensaje" => "Reserva no valida");
         }
         else{

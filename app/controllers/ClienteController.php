@@ -3,70 +3,74 @@ use Slim\Psr7\Response;
 
 require_once './models/Cliente.php';
 require_once './interfaces/IApiUsable.php';
+require_once './dto/ObtenerClienteDTO.php';
+
 
 class ClienteController extends Cliente implements IApiUsable
 {
-    //PUNTO 1B
+    //PUNTO 1-B
     public function CargarUno($request, $response, $args)
     {
         $parametros = $request->getParsedBody();
 
         $nombre = $parametros['nombre'];
         $documento = $parametros['documento'];
-        $modoPago = isset($parametros['modo_pago'])? $parametros['modo_pago']: "efectivo";
-        $tipoCliente = $parametros['tipo_cliente'];
+        $modo_pago = isset($parametros['modo_pago'])? $parametros['modo_pago']: "efectivo";
+        $tipo_cliente = $parametros['tipo_cliente'];
         $pais = $parametros['pais'];
         $ciudad = $parametros['ciudad'];
         $telefono = $parametros['telefono'];
 
         $numero = Cliente::GenerarCodigo();
 
-        $cliente = Cliente::obtenerCliente($numero, $tipoCliente);
-
+        $cliente = Cliente::obtenerPorDoc($tipo_cliente, $documento);
         $usr = new Cliente();
         $usr->nombre = $nombre;
         $usr->numero = $numero;
         $usr->documento = $documento;
-        $usr->modoPago = $modoPago;
-        $usr->tipoCliente = $tipoCliente;
+        $usr->modo_pago = $modo_pago;
+        $usr->tipo_cliente = trim($tipo_cliente);
         $usr->pais = $pais;
         $usr->ciudad = $ciudad;
         $usr->telefono = $telefono;
 
-        //FOTO ACA
-        $files = $request->getUploadedFiles();
-        //var_dump($files);
-        if(isset($files['foto']))
+        $response = new Response();
+        if(Cliente::validarTipo($usr->tipo_cliente) == "")
         {
-            if(!file_exists('ImagenesDeClientes/2023/')){
-                mkdir('ImagenesDeClientes/2023/',0777, true);
-            }
-            $foto = $files['foto'];
-            $media = $foto->getClientMediaType();
-            $ext = explode("/", $media)[1];
-            $type = explode("/", $media)[0];
-            if($type == "image")
+          if (isset($cliente->id)){
+            //YA EXISTE a modificar el que existe
+            $usr->id = $cliente->id;
+            $usr->modificarCliente();
+            $payload = json_encode(array("mensaje" => "Cliente modificado con exito"));
+          }
+          else{
+            // Creamos el cliente
+            $usr->crearCliente();
+            //FOTO ACA
+            $files = $request->getUploadedFiles();
+            if(isset($files['foto']))
             {
-              $tipos = $usr->separarTipo();
-              $ruta = "./ImagenesDeClientes/2023/" . $usr->numero . substr($tipos[0],0,1) . substr($tipos[1],0,1) . "." . $ext;
-              $foto->moveTo($ruta);
+                if(!file_exists('ImagenesDeClientes/2023/')){
+                    mkdir('ImagenesDeClientes/2023/',0777, true);
+                }
+                $foto = $files['foto'];
+                $media = $foto->getClientMediaType();
+                $ext = explode("/", $media)[1];
+                $type = explode("/", $media)[0];
+                if($type == "image")
+                {
+                  $tipos = $usr->separarTipo();
+                  $ruta = "./ImagenesDeClientes/2023/" . $usr->numero . substr($tipos[0],0,1) . substr($tipos[1],0,1) . "." . $ext;
+                  $foto->moveTo($ruta);
+                }
+                else{$ruta = "";}
             }
             else{$ruta = "";}
-        }
-        else{$ruta = "";}
-
-
-        $response = new Response();
-        if (isset($cliente->id)){
-          //YA EXISTE a modificar el que existe
-          $usr->id = $cliente->id;
-          $usr->modificarCliente();
-          $payload = json_encode(array("mensaje" => "Cliente modificado con exito"));
+            $payload = json_encode(array("mensaje" => "Cliente creado con exito"));
+          }
         }
         else{
-          // Creamos el cliente
-          $usr->crearCliente();
-          $payload = json_encode(array("mensaje" => "Cliente creado con exito"));
+          $payload = json_encode(array("mensaje" => "Tipo de cliente no valido"));
         }
         
         $response->getBody()->write($payload);
@@ -77,13 +81,13 @@ class ClienteController extends Cliente implements IApiUsable
     public function TraerUno($request, $response, $args)
     {
         $parametros = $request->getParsedBody();
-        $tipoCliente = $parametros['tipo_cliente'];
+        $tipo_cliente = $parametros['tipo_cliente'];
         $numero = $parametros['numero'];
-        $clientes = Cliente::obtenerPorNro($numero);
+        $clientes = Cliente::obtenerClientesPosibles($tipo_cliente,$numero);
         $cliente = null;
         if(count($clientes) > 0){
           foreach ($clientes as $key => $value) {
-            if ($value->tipoCliente == $tipoCliente){
+            if ($value->tipo_cliente == $tipo_cliente){
               $cliente = $value;
               break;
             }
@@ -123,21 +127,21 @@ class ClienteController extends Cliente implements IApiUsable
       $nombre = $parametros['nombre'];
       $numero = $parametros['numero'];
       $documento = $parametros['documento'];
-      $modoPago = $parametros['modo_pago'];
-      $tipoCliente = $parametros['tipo_cliente'];
+      $modo_pago = $parametros['modo_pago'];
+      $tipo_cliente = $parametros['tipo_cliente'];
       $pais = $parametros['pais'];
       $ciudad = $parametros['ciudad'];
       $telefono = $parametros['telefono'];
       
-      $cliente = Cliente::obtenerCliente($numero, $tipoCliente);
+      $cliente = Cliente::obtenerCliente($tipo_cliente, $numero);
 
       $usr = new Cliente();
       $usr->id = $cliente;
       $usr->nombre = $nombre;
       $usr->numero = $numero;
       $usr->documento = $documento;
-      $usr->modoPago = $modoPago;
-      $usr->tipoCliente = $tipoCliente;
+      $usr->modo_pago = $modo_pago;
+      $usr->tipo_cliente = $tipo_cliente;
       $usr->pais = $pais;
       $usr->ciudad = $ciudad;
       $usr->telefono = $telefono;
@@ -160,20 +164,20 @@ class ClienteController extends Cliente implements IApiUsable
         ->withHeader('Content-Type', 'application/json');
     }
 
-    //PENDIENTE PUNTO 9
+    //PUNTO 9
     public function BorrarUno($request, $response, $args)
     {
         $parametros = $request->getParsedBody();
-        $tipoCliente = $parametros['tipo_cliente'];
+        $tipo_cliente = $parametros['tipo_cliente'];
         $numero = $parametros['numero'];
 
-        $cliente = Cliente::obtenerCliente($tipoCliente, $numero);
+        $cliente = Cliente::obtenerCliente($tipo_cliente, $numero);
 
         if (!isset($cliente->id)){
           $payload = json_encode(array("mensaje" => "Cliente no existe"));
         }
         else{
-          Cliente::borrarCliente($tipoCliente, $numero);
+          Cliente::borrarCliente($tipo_cliente, $numero);
 
           $payload = json_encode(array("mensaje" => "Cliente borrado con exito"));
           $tipos = $cliente->separarTipo();
