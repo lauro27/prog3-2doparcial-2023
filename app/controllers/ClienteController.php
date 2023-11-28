@@ -181,11 +181,19 @@ class ClienteController extends Cliente implements IApiUsable
 
           $payload = json_encode(array("mensaje" => "Cliente borrado con exito"));
           $tipos = $cliente->separarTipo();
+
+          if(!file_exists('ImagenesBackupClientes/2023/')){
+            mkdir('ImagenesBackupClientes/2023/',0777, true);
+        }
+
           $ruta = "./ImagenesDeClientes/2023/" . $numero . substr($tipos[0],0,1) . substr($tipos[1],0,1) . ".*";
+          var_dump($ruta);
           $filenames = glob($ruta);
+          var_dump($filenames);
           if(count($filenames) > 0){
             $onlyfile = $filenames[0];
             $ext = explode(".", $onlyfile)[2];
+            var_dump($onlyfile);
             rename($onlyfile, "./ImagenesBackupClientes/2023/" . $numero . substr($tipos[0],0,1) . substr($tipos[1],0,1) . "." . $ext);
           }
         }
