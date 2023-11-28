@@ -2,3 +2,4 @@
 .env
 /app/ImagenesDeClientes
 /app/ImagenesDeReservas
+/app/ImagenesBackupClientes

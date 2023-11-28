@@ -13,10 +13,13 @@ use Slim\Routing\RouteContext;
 require __DIR__ . '/../vendor/autoload.php';
 
 require_once './db/AccesoDatos.php';
-// require_once './middlewares/Logger.php';
+require_once './middlewares/AuthMW.php';
+require_once './middlewares/Logger.php';
+require_once './util/AuthJWT.php';
 
 require_once './controllers/ClienteController.php';
 require_once './controllers/ReservaController.php';
+require_once './controllers/LoginController.php';
 
 // Load ENV
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
@@ -36,18 +39,41 @@ $app->addRoutingMiddleware();
 date_default_timezone_set("America/Argentina/Buenos_Aires");
 
 // Routes
+$app->post('/login[/]', \LoginController::class . ':IniciarSesion')
+    ->add(new Logger("Inicio de sesion"));
+
+$app->post('/usuario[/]', \UsuarioController::class . ':IniciarSesion')
+    ->add(new Logger("Creación de usuario"))
+    /*->add(\AuthMW::class . ':LoginGerente')*/;
+
 $app->group('/cliente', function (RouteCollectorProxy $group) {
-    $group->post('[/]', \ClienteController::class . ':CargarUno');//PUNTO 1-B y 8
-    $group->post('/traer[/]', \ClienteController::class . ':TraerUno');//PUNTO 2
-    $group->put('[/]', \ClienteController::class . ':ModificarUno');//PUNTO 5
-    $group->delete('[/]', \ClienteController::class . ':BorrarUno');//PUNTO 9
+    $group->post('[/]', \ClienteController::class . ':CargarUno')
+        ->add(new Logger("Carga de cliente"))
+        ->add(\AuthMW::class . ':LoginGerente');//PUNTO 1-B y 8
+    $group->post('/traer[/]', \ClienteController::class . ':TraerUno')
+        ->add(new Logger("Busqueda de un cliente"))
+        ->add(\AuthMW::class . ':LoginRecepcionistaCliente');//PUNTO 2
+    $group->put('[/]', \ClienteController::class . ':ModificarUno')
+        ->add(new Logger("Modificación de cliente"))
+        ->add(\AuthMW::class . ':LoginGerente');//PUNTO 5
+    $group->delete('[/]', \ClienteController::class . ':BorrarUno')
+        ->add(new Logger("Borrado de cliente"))
+        ->add(\AuthMW::class . ':LoginGerente');//PUNTO 9
   });
 
 $app->group('/reservas', function (RouteCollectorProxy $group) {
-    $group->post('[/]', \ReservaController::class . ':CargarUno');//PUNTO 3
-    $group->get('/{consulta}[/]', \ReservaController::class . ':TraerTodos');//PUNTO 4 y 10 - incompleto
-    $group->post('/cancelar[/]', \ReservaController::class . ':BorrarUno');//PUNTO 6
-    $group->post('/ajustar[/]', \ReservaController::class . ':ModificarUno');//PUNTO 7
+    $group->post('[/]', \ReservaController::class . ':CargarUno')
+        ->add(new Logger("Carga reserva"))
+        ->add(\AuthMW::class . ':LoginRecepcionistaCliente');//PUNTO 3
+    $group->get('/{consulta}[/]', \ReservaController::class . ':TraerTodos')
+        ->add(new Logger("Busqueda de reservas"))
+        ->add(\AuthMW::class . ':LoginRecepcionistaCliente');//PUNTO 4 y 10 - incompleto
+    $group->post('/cancelar[/]', \ReservaController::class . ':BorrarUno')
+        ->add(new Logger("Cancelación de reserva"))
+        ->add(\AuthMW::class . ':LoginRecepcionistaCliente');//PUNTO 6
+    $group->post('/ajustar[/]', \ReservaController::class . ':ModificarUno')
+        ->add(new Logger("Ajuste de reserva"))
+        ->add(\AuthMW::class . ':LoginRecepcionistaCliente');//PUNTO 7
   });
 
 $app->get('[/]', function (Request $request, Response $response) {    
