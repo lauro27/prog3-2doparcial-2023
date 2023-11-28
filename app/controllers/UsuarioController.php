@@ -3,8 +3,6 @@
 use Slim\Psr7\Response;
 
 require_once './models/Usuario.php';
-require_once './interfaces/IApiUsable.php';
-require_once './util/CsvHandler.php';
 
 class UsuarioController extends Usuario
 {

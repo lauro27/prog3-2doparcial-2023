@@ -19,7 +19,7 @@ class LoginController{
         }
 
         $response = new Response();
-        if(!isset($value->usuario) || !is_null($value->fecha_baja)){
+        if(!isset($value->usuario)){
             $payload = json_encode(array("mensaje" => "Usuario no existente"));
             $response->getBody()->write($payload);
             return $response->withStatus(401, 'Unauthorized');

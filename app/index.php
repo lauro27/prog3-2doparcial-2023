@@ -20,7 +20,7 @@ require_once './util/AuthJWT.php';
 require_once './controllers/ClienteController.php';
 require_once './controllers/ReservaController.php';
 require_once './controllers/LoginController.php';
-
+require_once './controllers/UsuarioController.php';
 // Load ENV
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
@@ -42,9 +42,9 @@ date_default_timezone_set("America/Argentina/Buenos_Aires");
 $app->post('/login[/]', \LoginController::class . ':IniciarSesion')
     ->add(new Logger("Inicio de sesion"));
 
-$app->post('/usuario[/]', \UsuarioController::class . ':IniciarSesion')
+$app->post('/usuario[/]', \UsuarioController::class . ':CargarUno')
     ->add(new Logger("Creación de usuario"))
-    /*->add(\AuthMW::class . ':LoginGerente')*/;
+    ->add(\AuthMW::class . ':LoginGerente');
 
 $app->group('/cliente', function (RouteCollectorProxy $group) {
     $group->post('[/]', \ClienteController::class . ':CargarUno')
